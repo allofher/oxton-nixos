@@ -2,8 +2,8 @@
   description = "oxton desktop — ssh target / home daemons / ROCm compute / Steam";
 
   inputs = {
-    # Track a stable channel; bump to nixos-25.11 etc. when you want.
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    # Matches your 26.05 install ISO. Bump the channel when you want to upgrade.
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
   };
 
   outputs = { self, nixpkgs, ... }:

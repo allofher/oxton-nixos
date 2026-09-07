@@ -16,6 +16,9 @@
   # RDNA3 (7900 XTX) benefits from a recent kernel + Mesa.
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
+  # zram swap (matches your current setup; no swap partition needed).
+  zramSwap.enable = true;
+
   # NOTE ON DISK ENCRYPTION — decide before install:
   #  - If you want an unattended box you can reboot remotely, either skip LUKS
   #    on root, OR keep LUKS + TPM2 auto-unlock (systemd-cryptenroll), OR set up
@@ -168,5 +171,5 @@
   ############################################################################
   # Set to the release you INSTALL from. Do not change casually afterwards.
   ############################################################################
-  system.stateVersion = "25.05";
+  system.stateVersion = "26.05";
 }
