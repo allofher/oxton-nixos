@@ -3,7 +3,7 @@
 Do these in order. Nothing here is destructive until step 6 (writing the USB), and
 that only touches the USB stick.
 
-## 0. Reattach and VERIFY the backup  ← NOT DONE, do not skip
+## 0. Reattach and VERIFY the backup  ← DONE 2026-10-03, backup confirmed good
 As of **2026-10-03 the HDD is not plugged in** — `lsblk` shows only `nvme0n1` and
 `/mnt` is empty. A backup was made on 2026-09-06 at `/mnt/pre-wipe-sep-2026/` on
 `sda`, plus the 235G music master at `/mnt/music`, but none of that is confirmable
@@ -37,7 +37,41 @@ and assuming that covers you.
 
 If you commit anything else before the wipe, remember to `git push` it.
 
-## 2. De-risk: build the config in a VM first  ← recommended
+## 2. De-risk: evaluate the config  ← DONE 2026-10-03, PASSING
+
+Nix is installed on this box (Determinate Nix 3.23.0 / 2.35.2) and the full system
+closure evaluates clean — no errors, no warnings. It took three fixes to get there,
+every one of which would otherwise have blown up mid-install:
+
+| Found | Why it mattered |
+|---|---|
+| `services.mpd.extraConfig` removed in 26.05 (RFC42) | hard eval failure; `musicDirectory` and `network.listenAddress` renamed too |
+| `noto-fonts-emoji` → `noto-fonts-color-emoji` | hard eval failure |
+| `pkgs.greetd.tuigreet` → `pkgs.tuigreet` | greetd would point at a nonexistent attr |
+
+Plus two found by reading, before nix was even installed: missing
+`nixpkgs.config.allowUnfree` (Steam is unfree — `nixos-install` would have failed
+outright) and `services.pipewire` never enabled while mpd outputs to it.
+
+Install size: 185 derivations to build, 1710 paths to fetch, **4.0 GiB download /
+9.9 GiB unpacked**. Budget bandwidth accordingly.
+
+To re-run it after any config change:
+```
+bash <(curl -s ...)  # no — just re-run the eval directly:
+cd ~/nixos
+git add -N hardware-configuration.nix   # only if you've made a local stub
+nix build --dry-run .#nixosConfigurations.oxton.config.system.build.toplevel
+```
+Two things that trip this up: flakes only see **git-tracked** files, so an untracked
+`hardware-configuration.nix` is invisible (`git add -N` fixes it — intent-to-add,
+which keeps it out of commits); and the stub must be deleted afterwards so it can
+never shadow the real generated file.
+
+`flake.lock` is committed, pinning nixpkgs to `774debe7` (2026-10-02). The install
+gets exactly what was verified here, not whatever the channel moves to.
+
+### Old note: full VM boot (optional, not done)
 This catches an eval error or a bad option name *while you still have a working
 machine*. The alternative is finding out from a failed `nixos-install` with your old
 OS already gone.
