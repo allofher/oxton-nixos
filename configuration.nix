@@ -109,20 +109,44 @@
   security.rtkit.enable = true; # lets pipewire take realtime priority
 
   ############################################################################
+  # Bluetooth
+  ############################################################################
+  # Adapter is the Intel AX200 combo card (lsusb 8087:0029). A2DP audio comes
+  # from pipewire/wireplumber above, so nothing extra is needed for headphones.
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;   # so the DualSense can reconnect without you logging in
+  };
+  # `bluetoothctl` ships with bluez — no extra package. If you ever want a UI,
+  # bluetuith is a small TUI and blueman is a GTK applet
+  # (services.blueman.enable); deliberately leaving both out.
+
+  # Firmware blobs for the AX200 (bluetooth AND wifi both need ibt-*/iwlwifi-*)
+  # and the amdgpu. The generated hardware-configuration.nix normally sets this
+  # with mkDefault; pinned here so it can't silently regress.
+  hardware.enableRedistributableFirmware = true;
+
+  ############################################################################
   # JOB 2 — home-network daemons (mpd)
   ############################################################################
+  # NOTE on 26.05: musicDirectory / network.listenAddress / extraConfig are all
+  # gone — mpd is declarative `settings` now (RFC42), and repeated blocks like
+  # audio_output are a list of attrsets.
   services.mpd = {
     enable = true;
     user = "liz";
-    # Point at the MASTER library on the HDD, not the small ~/music subset:
-    musicDirectory = "/mnt/music";
-    network.listenAddress = "0.0.0.0"; # LAN + tailscale; firewall scopes it
-    extraConfig = ''
-      audio_output {
-        type "pipewire"
-        name "PipeWire Output"
-      }
-    '';
+    openFirewall = true;   # opens 6600; don't also list it in the firewall below
+    settings = {
+      # the MASTER library on the HDD, not the small ~/music subset:
+      music_directory = "/mnt/music";
+      bind_to_address = "0.0.0.0";   # LAN + tailscale; firewall scopes it
+      audio_output = [
+        {
+          type = "pipewire";
+          name = "PipeWire Output";
+        }
+      ];
+    };
   };
   # mDNS so other LAN devices can discover services by name (matches your avahi use)
   services.avahi = {
@@ -164,7 +188,7 @@
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "${pkgs.greetd.tuigreet}/bin/tuigreet --time --cmd sway";
+      command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd sway";
       user = "greeter";
     };
   };
@@ -183,7 +207,7 @@
   fonts.packages = with pkgs; [
     nerd-fonts.jetbrains-mono
     noto-fonts
-    noto-fonts-emoji
+    noto-fonts-color-emoji
   ];
 
   programs.firefox.enable = true;
@@ -220,7 +244,8 @@
   ############################################################################
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ 22 6600 ];       # ssh, mpd
+    allowedTCPPorts = [ 22 ];             # ssh. mpd's 6600 comes from
+                                          # services.mpd.openFirewall above.
     trustedInterfaces = [ "tailscale0" ]; # everything open over the tailnet
   };
 
