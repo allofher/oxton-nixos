@@ -68,10 +68,15 @@ Catches config errors while you still have a working machine.
 - [ ] Printing (`cups`) was enabled on the old box and is not in this config yet.
       Bluetooth is now done. See `pre-nix/README.md`.
 
-## Blocking before the wipe
-- [ ] **Push this repo to GitHub.** INSTALL.md step 7 clones it from inside the
-      installer; if it only exists on the nvme, the wipe destroys it. See
-      PREINSTALL.md step 1.
-- [ ] **Reattach and verify the HDD backup.** As of 2026-10-03 `sda` is not plugged
-      in, so `/mnt/pre-wipe-sep-2026` and the 235G `/mnt/music` master can't be
-      confirmed. Do not wipe until you have eyes on that backup.
+## Blocking before the wipe — ALL CLEAR as of 2026-10-03
+- [x] Repo pushed to GitHub, public, anonymous clone verified working
+- [x] HDD backup reattached and confirmed good
+- [x] Config evaluates clean, nixpkgs pinned in `flake.lock`
+
+Remaining pre-wipe steps are mechanical: generate the LUKS passphrase in 1Password
+(PREINSTALL step 3), write the USB (step 6), unplug the HDD (step 7). Then
+`INSTALL.md`.
+
+One thing that is easy to forget: `~/.claude` holds your Claude Code auth, every
+transcript, and the memory files. INSTALL.md step 3 restores it — confirm it's in
+the backup before you wipe.
