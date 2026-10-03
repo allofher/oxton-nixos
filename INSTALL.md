@@ -142,10 +142,23 @@ slot survived, you have no recovery path — fix that immediately.
    stale `omarchy` node in the Tailscale admin console.
 3. **Restore your data** from the backup:
    ```
-   rsync -aH /mnt/pre-wipe-sep-2026/.ssh/ ~/.ssh/
+   rsync -aH /mnt/pre-wipe-sep-2026/.ssh/     ~/.ssh/
    rsync -aH /mnt/pre-wipe-sep-2026/projects/ ~/projects/
-   # dotfiles/.config as you want them — don't bulk-copy omarchy configs
+
+   # Claude Code state — DON'T skip this. Your auth, every past transcript, and
+   # ~/.claude/projects/-home-liz/memory/ (MEMORY.md + the memory files) all live
+   # here. Without it you re-auth and start from zero memory.
+   rsync -aH /mnt/pre-wipe-sep-2026/.claude/  ~/.claude/
+   cp -a     /mnt/pre-wipe-sep-2026/.claude.json ~/
+
+   rsync -aH /mnt/pre-wipe-sep-2026/.codex/   ~/.codex/
+   rsync -aH /mnt/pre-wipe-sep-2026/.config/ghostty/ ~/.config/ghostty/
+
+   # other dotfiles as you want them — don't bulk-copy omarchy's configs
    ```
+   Check these actually exist in the backup during PREINSTALL step 0 — the backup
+   was made with `/mnt` detached since, so none of it is confirmed. If `.claude/`
+   isn't in there, copy it off the nvme before you wipe.
 4. **Fix laptop known_hosts:** on your LAPTOP, `ssh-keygen -R oxton` (and the IP),
    then reconnect and accept the new host key.
 5. **Verify the four jobs:**
