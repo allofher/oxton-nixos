@@ -8,6 +8,13 @@
   ];
 
   ############################################################################
+  # Unfree packages — REQUIRED, do not remove
+  ############################################################################
+  # Steam, 1Password and claude-code are all unfree. Without this the build
+  # fails outright: "Package 'steam-unwrapped' has an unfree license".
+  nixpkgs.config.allowUnfree = true;
+
+  ############################################################################
   # Boot
   ############################################################################
   boot.loader.systemd-boot.enable = true;
@@ -89,6 +96,19 @@
   # (auth is interactive; keep the key out of the repo)
 
   ############################################################################
+  # Audio — pipewire. REQUIRED: mpd below is configured to output to pipewire,
+  # so without this it talks to a server that doesn't exist. No sound anywhere,
+  # games included.
+  ############################################################################
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;   # 32-bit games
+    pulse.enable = true;        # pulse-compatible clients
+  };
+  security.rtkit.enable = true; # lets pipewire take realtime priority
+
+  ############################################################################
   # JOB 2 — home-network daemons (mpd)
   ############################################################################
   services.mpd = {
@@ -149,6 +169,52 @@
     };
   };
 
+  # Wayland portals — file pickers, screen sharing, "open with" from apps.
+  # Without these, screenshots/screen-share and some GTK dialogs fail quietly.
+  xdg.portal = {
+    enable = true;
+    wlr.enable = true;                      # screencast on sway/wlroots
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+  };
+
+  # Fonts — a bare NixOS ships almost none, and Claude Code's TUI leans on
+  # box-drawing and icon glyphs. This saves you a confusing first hour of
+  # wondering why the terminal looks broken.
+  fonts.packages = with pkgs; [
+    nerd-fonts.jetbrains-mono
+    noto-fonts
+    noto-fonts-emoji
+  ];
+
+  programs.firefox.enable = true;
+
+  ############################################################################
+  # Secrets, auth, MFA
+  ############################################################################
+  # 1Password GUI + the `op` CLI. Unfree, hence allowUnfree above. You were on
+  # 1password-beta; swap in _1password-gui-beta if you want to stay on beta.
+  programs._1password.enable = true;
+  programs._1password-gui = {
+    enable = true;
+    # REQUIRED, and the bit everyone misses: without it the browser extension
+    # can't unlock from the desktop app and system auth prompts fail.
+    polkitPolicyOwners = [ "liz" ];
+  };
+
+  # libsecret store for whatever wants one (browser saved passwords, etc).
+  # You had gnome-keyring on the old box; unlocked by your login password.
+  services.gnome.gnome-keyring.enable = true;
+  security.pam.services.greetd.enableGnomeKeyring = true;
+
+  # Hardware security keys: WebAuthn/passkeys in Firefox and Chromium need no
+  # extra config (systemd ships the uaccess udev rules). Uncomment ONLY if you
+  # use a Yubikey as a smartcard (GPG/PIV), which needs a daemon:
+  # services.pcscd.enable = true;
+
+  # Your login/sudo password stays imperative (`passwd liz`, INSTALL step 9).
+  # Do NOT switch to users.users.liz.hashedPassword — this repo is PUBLIC and
+  # that would publish your password hash.
+
   ############################################################################
   # Firewall — LAN/tailscale scoped
   ############################################################################
@@ -163,6 +229,11 @@
   # Lean base + the nice CLI utils you liked from omarchy. Curate freely.
   ############################################################################
   environment.systemPackages = with pkgs; [
+    # terminals — ghostty is where you landed on omarchy; foot is the tiny
+    # dependable fallback and sway's default $term
+    ghostty foot
+    # Claude Code — from nixpkgs, NOT the curl|bash installer. See note below.
+    claude-code
     # core
     git vim neovim curl wget rsync tmux
     # the "omarchy-nice" terminal set
@@ -180,6 +251,20 @@
 
   # Flakes + the new CLI on.
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  ############################################################################
+  # Why claude-code comes from nixpkgs (read this before "fixing" it)
+  ############################################################################
+  # The official `curl ... | bash` installer drops a dynamically-linked binary
+  # that looks for /lib64/ld-linux-x86-64.so.2. NixOS has no such path, so it
+  # fails with "No such file or directory" while the file sits right there.
+  # Same trap for any downloaded prebuilt binary. In order of preference:
+  #   1. the nixpkgs package above — update by bumping the flake input
+  #   2. `nix run nixpkgs/<newer-rev>#claude-code` for a newer build
+  #   3. `steam-run ./some-binary` — Steam's FHS sandbox, works for any blob
+  # And let nix own updates: the built-in auto-updater can't write to the
+  # read-only nix store, so stop it from trying.
+  environment.sessionVariables.DISABLE_AUTOUPDATER = "1";
 
   ############################################################################
   # Set to the release you INSTALL from. Do not change casually afterwards.

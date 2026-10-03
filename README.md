@@ -39,9 +39,10 @@ Catches config errors while you still have a working machine.
 - [x] **ESP sized 2GiB**, not 1GiB — NixOS keeps a kernel per generation in `/boot`.
 - [x] **Channel: `nixos-26.05`** — matches the install ISO and is current stable.
 
+- [x] **Hostname: `oxton`** (2026-10-03). Already set in configuration.nix. Means
+      fixing the laptop's `known_hosts` and clearing the stale Tailscale node.
+
 ## Still open
-- [ ] Hostname — config says `oxton`, old box was `omarchy`. Renaming means fixing
-      the laptop's `known_hosts` and removing the stale Tailscale node either way.
 - [ ] Sway vs Hyprland for the desktop session. Sway is in the config now because
       it's the boring stable choice; you came from Hyprland on omarchy, so switching
       back is a one-line change if you miss it.
