@@ -254,9 +254,9 @@
   # Lean base + the nice CLI utils you liked from omarchy. Curate freely.
   ############################################################################
   environment.systemPackages = with pkgs; [
-    # terminals — ghostty is where you landed on omarchy; foot is the tiny
-    # dependable fallback and sway's default $term
-    ghostty foot
+    # terminal — ghostty. NOT foot: programs.sway already provides it (along
+    # with swaylock/swayidle/grim/wmenu), so listing it here is redundant.
+    ghostty
     # Claude Code — from nixpkgs, NOT the curl|bash installer. See note below.
     claude-code
     # core
