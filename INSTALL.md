@@ -135,9 +135,30 @@ slot survived, you have no recovery path — fix that immediately.
 
 # First-boot tasks (after you're logged into the new system)
 
-1. **Reconnect the HDD** (power off, plug `sda` back in, boot). It should mount; if
-   not, add it to `hardware-configuration.nix` or mount by label. `mpd` expects the
-   master library at `/mnt/music` and won't start cleanly without it.
+1. **Reconnect the HDD** and mount it at `/mnt`. It is a **USB-attached** 3.6T ext4
+   drive, so it will NOT appear in the generated `hardware-configuration.nix` (that
+   file is generated with the drive unplugged). You have to declare it:
+
+   ```nix
+   # in configuration.nix
+   fileSystems."/mnt" = {
+     device = "/dev/disk/by-uuid/<uuid from `lsblk -f`>";
+     fsType = "ext4";
+     options = [ "nofail" "x-systemd.device-timeout=10s" ];
+   };
+   ```
+
+   **`nofail` is not optional here.** Without it, a removable drive that is absent or
+   slow to enumerate makes systemd block on the mount unit and the boot stalls — which
+   is exactly the unattended-reboot property the TPM work was for. `nofail` plus a short
+   device timeout means a missing drive degrades to "mpd doesn't start" instead of
+   "the machine doesn't come back".
+
+   Use the **UUID**, not `/dev/sda1`: this drive has already been `sda` and not-`sda`
+   twice in a month depending on what else was plugged in.
+
+   `mpd` reads the master library from `/mnt/music` (235G, confirmed present) and won't
+   start cleanly without it.
 2. **Tailscale:** `sudo tailscale up` → authenticate in the browser. Then remove the
    stale `omarchy` node in the Tailscale admin console.
 3. **Restore your data** from the backup:
