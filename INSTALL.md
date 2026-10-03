@@ -2,16 +2,18 @@
 
 Assumes the HDD (`sda`) is physically unplugged, so the ONLY disk is `nvme0n1`.
 
-> **Encryption decision (top-level choice):** this guide's main path installs an
-> **unencrypted** root — simplest, and it boots unattended so you can reboot the
-> box remotely and just ssh back in. That's a reasonable choice for a home
-> machine behind a locked door. If you want encryption at rest, use LUKS + TPM2
-> auto-unlock instead (so it still boots unattended) — see the sidebar at the
-> bottom. Pick one before partitioning.
+> **Encryption: decided.** This guide installs a **LUKS-encrypted root with TPM2
+> auto-unlock**. You get encryption at rest *and* unattended reboots — the TPM
+> releases the key at boot, nothing is typed at the console, and the machine comes
+> back on its own after a power blip. You set a passphrase during install (step 4)
+> and enrol the TPM after first boot (step 11). The passphrase stays as your
+> recovery path. If you'd rather skip encryption entirely, see the sidebar at the
+> bottom.
 
 ## 1. Get online
 - Wired: usually automatic.
 - Wi-Fi: use the desktop's network applet, or `nmtui` in a terminal.
+
 Test: `ping -c1 github.com`
 
 ## 2. Confirm the target disk
@@ -21,19 +23,34 @@ lsblk
 You should see ONLY `nvme0n1` (plus the USB you booted from). If you see a 3.6T
 disk, STOP — the HDD is still connected; power off and unplug it.
 
-## 3. Partition the nvme (GPT: EFI + root)
+## 3. Partition the nvme (GPT: EFI + LUKS root)
 ```
 sudo -i                       # become root for the rest
 parted /dev/nvme0n1 -- mklabel gpt
-parted /dev/nvme0n1 -- mkpart ESP fat32 1MiB 1GiB
+parted /dev/nvme0n1 -- mkpart ESP fat32 1MiB 2GiB
 parted /dev/nvme0n1 -- set 1 esp on
-parted /dev/nvme0n1 -- mkpart root ext4 1GiB 100%
+parted /dev/nvme0n1 -- mkpart root 2GiB 100%
 ```
+**2GiB ESP, not 1GiB.** NixOS keeps a kernel + initrd in `/boot` for *every*
+generation you can roll back to. 1GiB fills up and then rebuilds start failing.
+(Your old Arch box used 2G for one kernel — NixOS needs the headroom more.)
 
-## 4. Format
+## 4. Format — this is where you set the LUKS passphrase
 ```
 mkfs.fat -F32 -n boot /dev/nvme0n1p1
-mkfs.ext4 -L nixos /dev/nvme0n1p2
+cryptsetup luksFormat /dev/nvme0n1p2
+```
+`luksFormat` prompts you to type `YES` and then set a passphrase.
+
+> **Put this passphrase in 1Password now, before you continue.** It is your only
+> recovery path if TPM unlock ever breaks (firmware update, CMOS reset, mainboard
+> swap). Losing it means losing the disk. Your 1Password emergency kit is also on
+> the HDD backup if you need to get in from the laptop.
+
+Then open it and make the filesystem:
+```
+cryptsetup open /dev/nvme0n1p2 cryptroot
+mkfs.ext4 -L nixos /dev/mapper/cryptroot
 ```
 
 ## 5. Mount
@@ -47,18 +64,35 @@ mount /dev/disk/by-label/boot /mnt/boot
 ```
 nixos-generate-config --root /mnt
 ```
-This creates `/mnt/etc/nixos/hardware-configuration.nix` (disk UUIDs, kernel
-modules for your 5800X/7900 XTX). You keep this file; you discard the generated
-`configuration.nix` in favor of your repo's.
+This creates `/mnt/etc/nixos/hardware-configuration.nix` — disk UUIDs, the
+`boot.initrd.luks.devices` entry for your encrypted root, and kernel modules for
+the 5800X / 7900 XTX. You keep this file; you discard the generated
+`configuration.nix` in favour of your repo's.
+
+Sanity-check that it picked up the LUKS device:
+```
+grep -A3 luks /mnt/etc/nixos/hardware-configuration.nix
+```
+If that comes back empty, stop and sort it out — the system won't boot without it.
 
 ## 7. Pull in your flake config
 ```
 nix-shell -p git   # drops you in a shell with git
-git clone https://github.com/<you>/oxton-nixos /mnt/home/liz/nixos
+git clone https://github.com/allofher/oxton-nixos /mnt/home/liz/nixos
 # bring the freshly generated hardware config into the repo:
 cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/liz/nixos/
 exit   # leave nix-shell
 ```
+
+> **If you made the repo private:** plain `git clone` over HTTPS will fail, and your
+> SSH key is on the HDD you just unplugged. Use the GitHub device flow instead —
+> it works fine with 2FA and hardware security keys:
+> ```
+> nix-shell -p git gh
+> gh auth login     # pick HTTPS, "login with a web browser"
+> ```
+> It prints an 8-character code; type it at github.com/login/device on your laptop
+> or phone. Then `gh repo clone allofher/oxton-nixos /mnt/home/liz/nixos`.
 
 ## 8. Install from the flake
 ```
@@ -76,17 +110,36 @@ nixos-enter --root /mnt -c 'passwd liz'
 ```
 reboot
 ```
-Remove the USB when it powers down. You should land at the `tuigreet` login →
-log in as `liz` → `sway` (or pick the Steam session).
+Remove the USB when it powers down. **This first boot will ask for the LUKS
+passphrase** — that's expected; the TPM isn't enrolled yet. After that you land at
+the `tuigreet` login → log in as `liz` → `sway` (or pick the Steam session).
+
+## 11. Enrol the TPM so future boots are unattended
+This is the step that buys you the unattended reboot. Run it once, on the
+installed system:
+```
+sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 /dev/nvme0n1p2
+```
+It asks for your existing passphrase, then adds a TPM-backed keyslot *alongside*
+it. Note the flag is `--tpm2-pcrs` (PCRs, plural) — easy to typo.
+
+**Verify before you trust it:** `reboot` and confirm the machine comes up to the
+login prompt with nothing typed. Then check both keyslots are present:
+```
+sudo cryptsetup luksDump /dev/nvme0n1p2 | grep -E 'Keyslot|tpm2'
+```
+You want to see your passphrase slot *and* a systemd-tpm2 token. If only the TPM
+slot survived, you have no recovery path — fix that immediately.
 
 ---
 
 # First-boot tasks (after you're logged into the new system)
 
-1. **Reconnect the HDD** (power off, plug `sda` back in, boot). It should mount;
-   if not, add it to `hardware-configuration.nix` or mount by label.
-2. **Tailscale:** `sudo tailscale up` → authenticate in the browser. Then remove
-   the stale `omarchy` node in the Tailscale admin console.
+1. **Reconnect the HDD** (power off, plug `sda` back in, boot). It should mount; if
+   not, add it to `hardware-configuration.nix` or mount by label. `mpd` expects the
+   master library at `/mnt/music` and won't start cleanly without it.
+2. **Tailscale:** `sudo tailscale up` → authenticate in the browser. Then remove the
+   stale `omarchy` node in the Tailscale admin console.
 3. **Restore your data** from the backup:
    ```
    rsync -aH /mnt/pre-wipe-sep-2026/.ssh/ ~/.ssh/
@@ -110,23 +163,20 @@ Day-to-day after this: edit files in `~/nixos`, then
 
 ---
 
-## Sidebar: encrypted root (LUKS + TPM2 auto-unlock)
-If you chose encryption, replace steps 3–5 with:
+## Sidebar: unencrypted root
+If you decide against encryption after all, it's simpler — no passphrase, no TPM
+enrolment, no recovery footgun. Replace steps 3–5 with:
 ```
 parted /dev/nvme0n1 -- mklabel gpt
-parted /dev/nvme0n1 -- mkpart ESP fat32 1MiB 1GiB
+parted /dev/nvme0n1 -- mkpart ESP fat32 1MiB 2GiB
 parted /dev/nvme0n1 -- set 1 esp on
-parted /dev/nvme0n1 -- mkpart root 1GiB 100%
+parted /dev/nvme0n1 -- mkpart root ext4 2GiB 100%
 mkfs.fat -F32 -n boot /dev/nvme0n1p1
-cryptsetup luksFormat /dev/nvme0n1p2
-cryptsetup open /dev/nvme0n1p2 cryptroot
-mkfs.ext4 -L nixos /dev/mapper/cryptroot
+mkfs.ext4 -L nixos /dev/nvme0n1p2
 mount /dev/disk/by-label/nixos /mnt
 mkdir -p /mnt/boot && mount /dev/disk/by-label/boot /mnt/boot
 ```
-`nixos-generate-config` will add the `luks` device to your hardware config.
-After first boot, enrol the TPM for unattended unlock:
-```
-sudo systemd-cryptenroll --tpm2-device=auto --tpm2-prs=7 /dev/nvme0n1p2
-```
-and set `boot.initrd.systemd.enable = true;` in configuration.nix.
+Then skip steps 10's passphrase prompt and step 11 entirely, and remove
+`boot.initrd.systemd.enable` from `configuration.nix`. The tradeoff: anyone who
+walks off with the machine or the drive reads everything on it, including your
+`~/.ssh` keys and Tailscale node credentials.

@@ -19,12 +19,25 @@
   # zram swap (matches your current setup; no swap partition needed).
   zramSwap.enable = true;
 
-  # NOTE ON DISK ENCRYPTION — decide before install:
-  #  - If you want an unattended box you can reboot remotely, either skip LUKS
-  #    on root, OR keep LUKS + TPM2 auto-unlock (systemd-cryptenroll), OR set up
-  #    initrd-ssh remote unlock. A LUKS root with a boot passphrase means the
-  #    machine WON'T come back after a power blip until you're physically there.
-  #  - hardware-configuration.nix will contain the luks/boot bits once generated.
+  # DISK ENCRYPTION — DECIDED 2026-10-03: LUKS root + TPM2 auto-unlock.
+  # You want unattended reboots AND encryption at rest. This board has a TPM 2.0
+  # (/dev/tpm0), so the TPM hands over the key at boot with no passphrase at the
+  # console and the machine comes back by itself after a power blip. The luks
+  # device lands in hardware-configuration.nix when nixos-generate-config runs;
+  # you enrol the TPM after first boot (see INSTALL.md step 11).
+
+  # Required for TPM2 unlock in the initrd:
+  boot.initrd.systemd.enable = true;
+
+  # CAVEAT, know this going in: Secure Boot is disabled on this board, so PCR 7
+  # measures "Secure Boot off". The TPM therefore protects you against someone
+  # stealing the DRIVE (pull it, it is unreadable) but NOT against someone who
+  # has the whole machine and boots their own media. Closing that gap needs
+  # Secure Boot + signed UKIs (lanzaboote) — a separate project, not needed now.
+
+  # ALWAYS keep a passphrase keyslot as recovery. TPM enrolment breaks on
+  # firmware updates, CMOS resets and mainboard swaps; with no passphrase that
+  # means losing the disk. Put the passphrase in 1Password before you enrol.
 
   ############################################################################
   # Networking / identity
