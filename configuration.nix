@@ -287,6 +287,28 @@
     mpc
     # dev / runtime you already use
     go uv docker-compose gh lazygit lazydocker
+
+    ########################################################################
+    # The oxton.net intake pipeline (~/projects/oxton-website/tools/intake)
+    ########################################################################
+    # It needs exactly three things on PATH, and nothing else:
+    #   node     — the scripts are stdlib-only (node:fs/promises etc), no
+    #              package.json, no npm tree. So any modern node works and
+    #              there's nothing to pin. This is 24 LTS; nodejs_26 exists
+    #              if you want to match the 25.8.0 mise was giving you.
+    #   magick   — ImageMagick, above. The only external binary the .mjs
+    #              files shell out to.
+    #   llama-server — from llama-cpp, below.
+    nodejs
+    # serve.sh runs `exec llama-server -hf ...` straight off PATH, so this
+    # drops in with NO change to your project. Vulkan to match what serve.sh
+    # expects, and RADV is already there via hardware.graphics. The vulkan
+    # build is in cache.nixos.org, so it's a download and not a compile.
+    # Replaces the hand-built copy in ~/.local/opt/llama.cpp, which would not
+    # have run here anyway (same ld-linux problem as any downloaded binary).
+    # NOT tesseract: the pipeline does OCR with a vision model over HTTP on
+    # 127.0.0.1:8017, and tesseract appears nowhere in oxton-website.
+    (llama-cpp.override { vulkanSupport = true; })
     # sysadmin / debugging
     lsof socat whois exfatprogs imagemagick
     # GPU monitoring from the HOST (temp, utilisation, clocks). Deliberately
