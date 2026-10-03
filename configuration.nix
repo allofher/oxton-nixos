@@ -230,9 +230,14 @@
   services.gnome.gnome-keyring.enable = true;
   security.pam.services.greetd.enableGnomeKeyring = true;
 
-  # Hardware security keys: WebAuthn/passkeys in Firefox and Chromium need no
-  # extra config (systemd ships the uaccess udev rules). Uncomment ONLY if you
-  # use a Yubikey as a smartcard (GPG/PIV), which needs a daemon:
+  # Hardware security keys — DECIDED 2026-10-03: nothing to configure.
+  # The YubiKey is used purely as an MFA/security key for a handful of web
+  # services (github, google). WebAuthn/U2F in Firefox and Chromium works with
+  # no extra config: systemd ships the fido udev rules and logind's uaccess
+  # grants the active session access to the device.
+  # services.pcscd.enable is therefore NOT needed. It would only be required if
+  # you started using the key as a smartcard — GPG signing, PIV certs, or ssh
+  # through gpg-agent. Uncomment then, not now:
   # services.pcscd.enable = true;
 
   # Your login/sudo password stays imperative (`passwd liz`, INSTALL step 9).
@@ -253,10 +258,9 @@
   # Packages — this IS your "install packages ahead of time" step.
   # Lean base + the nice CLI utils you liked from omarchy. Curate freely.
   ############################################################################
+  # Trimmed 2026-10-03 against measured closure sizes. No terminal listed here
+  # on purpose: programs.sway provides foot (plus swaylock/swayidle/grim/wmenu).
   environment.systemPackages = with pkgs; [
-    # terminal — ghostty. NOT foot: programs.sway already provides it (along
-    # with swaylock/swayidle/grim/wmenu), so listing it here is redundant.
-    ghostty
     # Claude Code — from nixpkgs, NOT the curl|bash installer. See note below.
     claude-code
     # core
@@ -265,10 +269,14 @@
     eza bat fd ripgrep fzf zoxide starship btop jq yazi
     # dev / runtime you already use
     go uv docker-compose
-    # GPU / compute tooling (native, for monitoring/debug)
-    rocmPackages.rocminfo rocmPackages.rocm-smi
-    # gaming helpers
-    mangohud protonup-qt
+    # GPU monitoring from the HOST (temp, utilisation, clocks). Deliberately
+    # NOT rocminfo — 773 MiB that only duplicates what's already inside the
+    # rocm/pytorch container where compute actually runs.
+    rocmPackages.rocm-smi
+    # gaming helpers. No protonup-qt: 1.7 GiB and the only Qt app in the whole
+    # config, so nearly all of that was marginal rather than shared. Steam
+    # ships Proton itself; protonup-qt only manages GE-Proton builds.
+    mangohud
   ];
 
   # Nicer shell prompt/utils are configured per-user later; keeping this minimal.

@@ -42,12 +42,31 @@ Catches config errors while you still have a working machine.
 - [x] **Hostname: `oxton`** (2026-10-03). Already set in configuration.nix. Means
       fixing the laptop's `known_hosts` and clearing the stale Tailscale node.
 
+- [x] **Sway, not Hyprland** (2026-10-03). Deliberate: the graphical session is
+      mostly a host for gamescope, sway's stable-channel version needs no extra
+      flake input or cachix, and Hyprland's fast-moving breaking config changes
+      are a variable worth not having during a migration. greetd+tuigreet instead
+      of the old box's SDDM — no Qt/GNOME login stack on a mostly-headless box.
+      Hyprland was considered as a second greetd session and declined: the point
+      of this rebuild is less bloat, not more.
+- [x] **Bluetooth: yes** (2026-10-03). `hardware.bluetooth` + `powerOnBoot` for the
+      DualSense, A2DP via pipewire, and `enableRedistributableFirmware` which the
+      AX200 needs for bluetooth *and* wifi. No blueman/bluetuith — bluetoothctl
+      ships with bluez.
+- [x] **YubiKey needs no config** (2026-10-03). Used purely as an MFA/security key
+      for a few web services, and WebAuthn/U2F works out of the box via systemd's
+      udev rules. `services.pcscd` left off; only needed for smartcard use.
+- [x] **Trimmed against measured closure sizes** (2026-10-03): dropped protonup-qt
+      (1.7 GiB, sole Qt app in the config), rocminfo (773 MiB, duplicates the
+      rocm/pytorch container), ghostty (sway ships foot), and a redundant foot
+      entry. Install went 4.0 → **3.8 GiB download**, 9.9 → **9.0 GiB unpacked**.
+      Kept gnome-keyring and rocm-smi.
+- [x] **Config evaluates clean** (2026-10-03) — see PREINSTALL step 2 for the five
+      bugs this caught, and `flake.lock` pinning nixpkgs to `774debe7`.
+
 ## Still open
-- [ ] Sway vs Hyprland for the desktop session. Sway is in the config now because
-      it's the boring stable choice; you came from Hyprland on omarchy, so switching
-      back is a one-line change if you miss it.
-- [ ] Printing (`cups`) and `bluetooth` were enabled on the old box and are not in
-      this config yet — see `pre-nix/README.md`.
+- [ ] Printing (`cups`) was enabled on the old box and is not in this config yet.
+      Bluetooth is now done. See `pre-nix/README.md`.
 
 ## Blocking before the wipe
 - [ ] **Push this repo to GitHub.** INSTALL.md step 7 clones it from inside the
