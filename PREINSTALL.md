@@ -105,14 +105,27 @@ in INSTALL.md step 11.
   the emergency kit is also at `/mnt/1Password Emergency Kit...pdf` on the HDD
 - Hostname you want (config says `oxton`; this box is currently `omarchy`)
 
-## 4. Identify the USB stick — CAREFULLY
-Before plugging the USB in:
+## 4. Identify the USB stick — by ATTRIBUTE, never by name
+
+> **Kernel device names are not stable, and this already bit us.** In September
+> `sda` was the 3.6T HDD. On 2026-10-03, with the HDD unplugged, `sda` was the
+> **USB stick**. Anything in these notes that says "sda = HDD" is only true for
+> the session it was written in. Never `dd` to a name you assumed.
+
+Identify by what the device *is*:
 ```
-lsblk
+lsblk -o NAME,SIZE,TYPE,TRAN,RM,HOTPLUG,FSTYPE,LABEL,MODEL,SERIAL,MOUNTPOINTS
 ```
-Note what's there (`sda` = HDD, `nvme0n1` = system). Then plug the USB in and run
-`lsblk` again. The NEW device that appeared is your USB (likely `/dev/sdb`, maybe
-8–64G). **Write that device name down. Do not confuse it with `sda`, your 3.6T HDD.**
+The USB stick is the one where **`TRAN=usb` and `RM=1`** (removable), with a
+plausible flash size and a flash-drive `MODEL`. The nvme reads `TRAN=nvme`, and
+the HDD reads `TRAN=sata` at ~3.6T. Cross-check the `SERIAL` against the stick
+if you have two USB devices attached.
+
+Confirmed example from 2026-10-03:
+```
+sda  57.6G disk usb 1 1 exfat Untitled "USB Flash Drive" 7446121107142579
+```
+`TRAN=usb`, `RM=1`, 57.6G, flash-drive model string → that is the USB.
 
 ## 5. (Optional) verify the ISO
 ```
@@ -122,19 +135,30 @@ sha256sum nixos-graphical-26.05.8954.a5cc6f2c37bf-x86_64-linux.iso
 Compare against the hash on nixos.org/download if you kept it.
 
 ## 6. Write the ISO to the USB  ← destroys the USB's contents (only the USB)
-Replace `sdX` with the USB device from step 4. **Triple-check it is the USB.**
+Re-run the `lsblk` from step 4 **immediately before this command** and confirm the
+target by `TRAN=usb` + `RM=1` + size + serial. Write to the **whole device**
+(`/dev/sdX`), not a partition (`/dev/sdX1`).
 ```
 sudo dd if=~/downloads/nixos-graphical-26.05.8954.a5cc6f2c37bf-x86_64-linux.iso \
-  of=/dev/sdX bs=4M status=progress oflag=sync
+  of=/dev/sdX bs=4M status=progress oflag=sync conv=fsync
 sync
 ```
+Then verify the write actually landed, rather than trusting it:
+```
+sudo cmp -n 3843686400 \
+  ~/downloads/nixos-graphical-26.05.8954.a5cc6f2c37bf-x86_64-linux.iso /dev/sdX \
+  && echo "WRITE VERIFIED"
+```
+ISO sha256, confirmed against releases.nixos.org on 2026-10-03:
+`4fe1e5f85166506bebb17831ec07c8db3593c2bf393fc1bb649acb4993439f21`
 
 ## 7. Unmount and physically disconnect the HDD
 Only after step 0 is genuinely done.
 ```
 sudo umount /mnt
 ```
-Then **power off and unplug the HDD (`sda`) cable** before installing. With it
+Then **power off and unplug the HDD cable** before installing — identify it as the
+~3.6T `TRAN=sata` disk, not by device name (see the warning in step 4). With it
 physically absent it's impossible to select the wrong disk. You reconnect it after
 the first successful boot to restore your files.
 
