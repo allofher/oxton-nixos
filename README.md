@@ -11,6 +11,8 @@ AMD Ryzen 7 5800X + Radeon RX 7900 XTX (RDNA3/gfx1100). Four jobs:
 - `configuration.nix` — all logical config (pre-preparable)
 - `hardware-configuration.nix` — **generated on the machine during install**, then committed
 - `pre-nix/` — package + systemd inventory of the old Arch box, for reference
+- `pkgs/cormorant.nix` + `fonts/cormorant/` — Cormorant, vendored (not in nixpkgs)
+- `templates/node-project/` — `nix flake init -t ~/nixos#node` for a new project
 
 ## Install flow (from the NixOS installer)
 1. Partition the **nvme only** (see safety note). Mount under `/mnt`.
@@ -64,9 +66,27 @@ Catches config errors while you still have a working machine.
 - [x] **Config evaluates clean** (2026-10-03) — see PREINSTALL step 2 for the five
       bugs this caught, and `flake.lock` pinning nixpkgs to `774debe7`.
 
+- [x] **Node stays system-wide, with direnv for per-project overrides**
+      (2026-10-03). PATH placement is not a security boundary — a dev shell's
+      node has identical filesystem and network access to a system-wide one, so
+      it buys version management, not isolation. The intake pipeline is
+      stdlib-only with no package.json, so there is no version to pin and no npm
+      supply chain. `programs.direnv.enable` covers the case where a future
+      project does need its own node or native build deps. Revisit dropping the
+      system-wide copy once the intake unit declares its own `path`; nothing
+      else depends on it, so that's a one-line change.
+
 ## Still open
 - [ ] Printing (`cups`) was enabled on the old box and is not in this config yet.
-      Bluetooth is now done. See `pre-nix/README.md`.
+      Bluetooth is now done. See `pre-nix/README.md`. No printer drivers were ever
+      installed on the old box, so nothing was likely ever configured.
+- [ ] Move `oxton-intake-watch` into configuration.nix as a declared
+      `systemd.user.services` entry with an explicit `path` and systemd
+      hardening (`ProtectSystem`, `ReadWritePaths`, `ProtectHome`). That unit is
+      the only thing in the system that processes externally-originated files
+      automatically — Taildrop drops a scan, the watcher wakes, ImageMagick
+      parses it — so it's the one place confinement buys something real. Better
+      done after first boot, where it can be tested.
 
 ## Blocking before the wipe — ALL CLEAR as of 2026-10-03
 - [x] Repo pushed to GitHub, public, anonymous clone verified working

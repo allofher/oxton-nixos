@@ -11,6 +11,15 @@
       system = "x86_64-linux";
     in {
       # `nixos-rebuild switch --flake .#oxton`
+      # `nix flake init -t ~/nixos#node` in a new project directory.
+      templates = {
+        node = {
+          path = ./templates/node-project;
+          description = "Node dev shell, with the native-module build deps wired up";
+        };
+        default = self.templates.node;
+      };
+
       nixosConfigurations.oxton = nixpkgs.lib.nixosSystem {
         inherit system;
         modules = [

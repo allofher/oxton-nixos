@@ -327,6 +327,18 @@
   # Flakes + the new CLI on.
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # direnv + nix-direnv. This is the replacement for mise, and it's a better
+  # one: a per-project dev shell pins the NATIVE build dependencies too
+  # (python3/pkg-config/libvips for anything going through node-gyp), which a
+  # version manager never could — it only ever managed the node binary and
+  # left the C libraries to the host distro.
+  #
+  # `cd` into a project with an .envrc and its tools appear, shadowing the
+  # system ones on PATH; `cd` out and they're gone. nix-direnv caches the
+  # shell so that's instant instead of re-evaluating the flake every time.
+  # Start a new project with:  nix flake init -t ~/nixos#node
+  programs.direnv.enable = true;
+
   ############################################################################
   # Why claude-code comes from nixpkgs (read this before "fixing" it)
   ############################################################################
