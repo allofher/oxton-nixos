@@ -205,9 +205,16 @@
   # box-drawing and icon glyphs. This saves you a confusing first hour of
   # wondering why the terminal looks broken.
   fonts.packages = with pkgs; [
+    # Terminal face. Has to be monospace, and the Nerd variant carries the icon
+    # glyphs starship's prompt and Claude Code's TUI draw with — Cormorant is a
+    # display serif and can't do this job.
     nerd-fonts.jetbrains-mono
+    # Broad fallback so arbitrary web pages don't render as tofu in firefox.
     noto-fonts
     noto-fonts-color-emoji
+    # The one face you actually like. Not in nixpkgs — see pkgs/cormorant.nix
+    # for why it's vendored instead of pulled from google-fonts.
+    (callPackage ./pkgs/cormorant.nix { })
   ];
 
   programs.firefox.enable = true;
@@ -264,11 +271,24 @@
     # Claude Code — from nixpkgs, NOT the curl|bash installer. See note below.
     claude-code
     # core
-    git vim neovim curl wget rsync tmux
+    git vim neovim curl wget rsync tmux unzip
     # the "omarchy-nice" terminal set
     eza bat fd ripgrep fzf zoxide starship btop jq yazi
+    # Wayland desktop plumbing. None of this comes with sway, and the first two
+    # are the ones whose absence actually breaks things:
+    wl-clipboard      # wl-copy/wl-paste ARE the clipboard. Without it nothing
+                      # leaves the terminal and nvim's "+y silently no-ops.
+    mako              # notification daemon — sway ships none, so notifications
+                      # are dropped rather than queued.
+    slurp satty       # region select + annotate, to pair with sway's grim
+    imv               # image viewer
+    xdg-terminal-exec # lets apps open "the" terminal
+    # Job 2 had a daemon and no way to talk to it. `mpc`, not mpc_cli.
+    mpc
     # dev / runtime you already use
-    go uv docker-compose
+    go uv docker-compose gh lazygit lazydocker
+    # sysadmin / debugging
+    lsof socat whois exfatprogs imagemagick
     # GPU monitoring from the HOST (temp, utilisation, clocks). Deliberately
     # NOT rocminfo — 773 MiB that only duplicates what's already inside the
     # rocm/pytorch container where compute actually runs.
