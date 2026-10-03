@@ -134,7 +134,20 @@ sha256sum nixos-graphical-26.05.8954.a5cc6f2c37bf-x86_64-linux.iso
 ```
 Compare against the hash on nixos.org/download if you kept it.
 
-## 6. Write the ISO to the USB  ← destroys the USB's contents (only the USB)
+## 6. Write the ISO to the USB  ← DONE 2026-10-03, verified
+
+Written to `/dev/sda` (USB Flash Drive, 57.6G, serial 7446121107142579) and
+verified byte-for-byte:
+
+- `dd` wrote 3843686400 bytes at 28.6 MB/s — exactly the ISO size
+- `cmp -n 3843686400` over the whole image returned clean → **WRITE VERIFIED**
+- the stick now reads `iso9660 / nixos-graphical-26.05-x86_64`, with an
+  `sda2 vfat EFIBOOT` partition present, which is what makes it UEFI-bootable
+- ISO sha256 confirmed against releases.nixos.org beforehand
+
+Original instructions kept below for the next time.
+
+### Original
 Re-run the `lsblk` from step 4 **immediately before this command** and confirm the
 target by `TRAN=usb` + `RM=1` + size + serial. Write to the **whole device**
 (`/dev/sdX`), not a partition (`/dev/sdX1`).
