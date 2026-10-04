@@ -281,6 +281,13 @@
                       # leaves the terminal and nvim's "+y silently no-ops.
     mako              # notification daemon — sway ships none, so notifications
                       # are dropped rather than queued.
+    fuzzel            # app launcher / command palette, bound to Super+space
+                      # (and Super+d) in sway/config. Replaces sway's bundled
+                      # wmenu, which is prefix-match-only with no icons. Also
+                      # the dmenu for the Super+Tab window switcher.
+    adwaita-icon-theme # fuzzel's icons-enabled resolves .desktop icon names
+                      # against an installed theme; with none present it draws
+                      # blanks rather than falling back to text.
     slurp satty       # region select + annotate, to pair with sway's grim
     imv               # image viewer
     xdg-terminal-exec # lets apps open "the" terminal

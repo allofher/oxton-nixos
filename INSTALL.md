@@ -191,6 +191,17 @@ slot survived, you have no recovery path — fix that immediately.
    ```
    cd ~/nixos && git add hardware-configuration.nix && git commit -m "add hardware config" && git push
    ```
+7. **Link the sway + fuzzel configs.** There's no home-manager here, so these
+   two live in the repo but are NOT deployed by `nixos-rebuild`. Without the
+   symlinks sway silently falls back to the stock `/etc/sway/config` and you
+   get `wmenu` on `$mod+d` instead of fuzzel:
+   ```
+   mkdir -p ~/.config/fuzzel
+   ln -sfn ~/nixos/sway ~/.config/sway
+   ln -sfn ~/nixos/sway/fuzzel.ini ~/.config/fuzzel/fuzzel.ini
+   ```
+   Then `swaymsg reload`. Check it took with `sway --validate --config
+   ~/.config/sway/config` and `fuzzel --check-config`.
 
 Day-to-day after this: edit files in `~/nixos`, then
 `sudo nixos-rebuild switch --flake ~/nixos#oxton`.
