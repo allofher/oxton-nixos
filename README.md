@@ -32,6 +32,31 @@ nixos-rebuild build-vm --flake ~/nixos#oxton
 Catches config errors while you still have a working machine.
 
 ## Decisions made
+- [x] **Scope: resilience, not a product** (2026-10-04). This repo exists so a
+      personal machine can be rebuilt and a config survives a wipe. It is not a
+      deployment framework and does not need to generalise. When a change starts
+      growing abstraction layers for machines or hardware that do not exist yet,
+      that is the signal to stop and do the small concrete thing instead. One
+      monolith is a problem; a framework for one machine is a worse one.
+- [x] **No `disko`** (2026-10-04). Declarative partitioning was considered for
+      the fresh-install work and declined. Partitioning is the one destructive
+      step here, and keeping it hand-run with the target disk identified by
+      `TRAN`/`MODEL`/`SERIAL` at the time is the safeguard — same reasoning as
+      the HDD interlock in INSTALL.md first-boot step 1. Don't re-propose it.
+- [x] **No `home-manager`** (2026-10-04). Considered for the sway/fuzzel
+      dotfiles and declined. It would buy declarative symlinks at the cost of
+      another release-pinned flake input, and it would make `~/.config/sway` a
+      read-only store path — so every keybind tweak would need a full switch
+      instead of an instant `swaymsg reload` against a writable repo file.
+      `systemd.tmpfiles.rules` with `L+` lines gets the declarative symlink for
+      three lines and no new input. Revisit only if dotfiles ever need to roll
+      back in lockstep with the system.
+- [x] **Per-host dirs, committed** (2026-10-04). Each machine's
+      `hardware-configuration.nix` stays committed but moves under
+      `hosts/<name>/`, so multiple Nix machines each have their hardware info
+      backed up and separate. Explicitly NOT building a shared multi-machine
+      abstraction until a second host actually exists — the GPU and
+      package-set seams can't be found by guessing.
 - [x] **Disk encryption: LUKS + TPM2 auto-unlock** (2026-10-03). Gets both
       encryption at rest and unattended reboots; board has a TPM 2.0. Passphrase
       kept as the recovery keyslot — it lives in 1Password. See INSTALL.md steps
@@ -88,12 +113,18 @@ Catches config errors while you still have a working machine.
       stops existing at the moment it matters, and the install closure gets
       small enough to be quick and hard to fail in the ISO.
 
+      Also moves each machine's `hardware-configuration.nix` under
+      `hosts/<name>/` per the decision above — no shared abstraction, just a
+      directory per box.
+
       The post-install steps that are irreducibly imperative — `passwd`, LUKS
-      TPM2 enrolment, `tailscale up`, moving the git remote to ssh, the
-      sway/fuzzel symlinks, restoring data, committing the hardware config —
-      become the "fast forward": ideally one idempotent, re-runnable script that
-      checks and reports rather than prose in INSTALL.md that has to be followed
-      by hand without skipping a line.
+      TPM2 enrolment, `tailscale up`, moving the git remote to ssh, restoring
+      data, committing the hardware config — become the "fast forward": ideally
+      one idempotent, re-runnable script that checks and reports rather than
+      prose in INSTALL.md that has to be followed by hand without skipping a
+      line. (The sway/fuzzel symlinks drop off that list — they become
+      `systemd.tmpfiles.rules` `L+` entries instead; see the home-manager
+      decision above.)
 
       Note the HDD mount step keeps its manual, by-hand identification either
       way; see the safety-interlock note in INSTALL.md first-boot step 1.
