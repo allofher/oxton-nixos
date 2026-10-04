@@ -269,7 +269,8 @@
   # on purpose: programs.sway provides foot (plus swaylock/swayidle/grim/wmenu).
   environment.systemPackages = with pkgs; [
     # Claude Code — from nixpkgs, NOT the curl|bash installer. See note below.
-    claude-code
+    # From unstable on purpose: 26.05 stopped backporting it. See note below.
+    unstable.claude-code
     # core
     git vim neovim curl wget rsync tmux unzip
     # the "omarchy-nice" terminal set
@@ -346,9 +347,13 @@
   # that looks for /lib64/ld-linux-x86-64.so.2. NixOS has no such path, so it
   # fails with "No such file or directory" while the file sits right there.
   # Same trap for any downloaded prebuilt binary. In order of preference:
-  #   1. the nixpkgs package above — update by bumping the flake input
-  #   2. `nix run nixpkgs/<newer-rev>#claude-code` for a newer build
+  #   1. the nixpkgs package above — update with `nix flake update`
+  #   2. `nix run nixpkgs/nixos-unstable#claude-code` for a one-off newer build
   #   3. `steam-run ./some-binary` — Steam's FHS sandbox, works for any blob
+  # It comes from pkgs.unstable (see the overlay in flake.nix), NOT the 26.05
+  # branch: backports there stopped at 2.1.223 on 2026-08-06, so bumping the
+  # stable input does nothing for this package. Updating now means updating the
+  # nixpkgs-unstable input, which tracks releases within a day or two.
   # And let nix own updates: the built-in auto-updater can't write to the
   # read-only nix store, so stop it from trying.
   environment.sessionVariables.DISABLE_AUTOUPDATER = "1";
