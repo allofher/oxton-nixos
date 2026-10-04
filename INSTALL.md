@@ -82,7 +82,7 @@ nix-shell -p git   # drops you in a shell with git
 # your old one is unplugged. Swapped to ssh in first-boot step 6.
 git clone https://github.com/allofher/oxton-nixos /mnt/home/liz/nixos
 # bring the freshly generated hardware config into the repo:
-cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/liz/nixos/
+cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/liz/nixos/hosts/oxton/
 exit   # leave nix-shell
 ```
 
@@ -222,22 +222,29 @@ slot survived, you have no recovery path — fix that immediately.
    won't survive a reinstall.
 7. **Commit the hardware config** so the repo is complete:
    ```
-   cd ~/nixos && git add hardware-configuration.nix && git commit -m "add hardware config" && git push
+   cd ~/nixos && git add hosts/oxton/hardware-configuration.nix && git commit -m "add hardware config" && git push
    ```
-8. **Link the sway + fuzzel configs.** There's no home-manager here, so these
-   two live in the repo but are NOT deployed by `nixos-rebuild`. Without the
-   symlinks sway silently falls back to the stock `/etc/sway/config` and you
-   get `wmenu` on Super+d instead of fuzzel on Super+space:
+8. **Nothing to do for the sway/fuzzel configs** — this used to be a manual
+   `ln -sfn` step and is now handled by `systemd.tmpfiles.rules` in
+   `configuration.nix`, so the switch in step 8 of the install already placed
+   the symlinks. Worth one check that it took, since a silent failure here
+   looks like "my keybinds are gone":
    ```
-   mkdir -p ~/.config/fuzzel
-   ln -sfn ~/nixos/sway ~/.config/sway
-   ln -sfn ~/nixos/sway/fuzzel.ini ~/.config/fuzzel/fuzzel.ini
+   ls -l ~/.config/sway ~/.config/fuzzel/fuzzel.ini   # both → ~/nixos/sway/...
+   sway --validate --config ~/.config/sway/config
+   fuzzel --check-config
    ```
-   Then `swaymsg reload`. Check it took with `sway --validate --config
-   ~/.config/sway/config` and `fuzzel --check-config`.
+   If the links are missing, `sudo systemd-tmpfiles --create` replaces them
+   without a full rebuild.
 
 Day-to-day after this: edit files in `~/nixos`, then
 `sudo nixos-rebuild switch --flake ~/nixos#oxton`.
+
+Editing sway keybinds is the exception — `~/.config/sway` is a symlink to a
+writable file in the repo, so an edit plus `swaymsg reload` applies instantly
+with no rebuild. Don't create files under `~/.config/sway` directly, though:
+the tmpfiles rule is `L+`, which deletes and recreates that path on each
+switch.
 
 ---
 

@@ -9,7 +9,7 @@ AMD Ryzen 7 5800X + Radeon RX 7900 XTX (RDNA3/gfx1100). Four jobs:
 ## Files
 - `flake.nix` — pins nixpkgs, defines `nixosConfigurations.oxton`
 - `configuration.nix` — all logical config (pre-preparable)
-- `hardware-configuration.nix` — **generated on the machine during install**, then committed
+- `hosts/oxton/hardware-configuration.nix` — **generated on the machine during install**, then committed. One dir per machine, so a second Nix box keeps its own.
 - `pre-nix/` — package + systemd inventory of the old Arch box, for reference
 - `pkgs/cormorant.nix` + `fonts/cormorant/` — Cormorant, vendored (not in nixpkgs)
 - `templates/node-project/` — `nix flake init -t ~/nixos#node` for a new project

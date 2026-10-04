@@ -2,9 +2,12 @@
 
 {
   imports = [
-    # Generated on the machine by `nixos-generate-config` during install.
-    # It doesn't exist yet — create/commit it after the first install.
-    ./hardware-configuration.nix
+    # Generated on the machine by `nixos-generate-config` during install, then
+    # committed. Lives under hosts/<name>/ so that if there's ever a second Nix
+    # box, each machine's hardware info is backed up here without the two
+    # getting mixed up. There is deliberately no shared multi-host abstraction
+    # — see "Per-host dirs" in README.md.
+    ./hosts/oxton/hardware-configuration.nix
   ];
 
   ############################################################################
@@ -193,6 +196,37 @@
     };
   };
 
+  # sway + fuzzel configs, symlinked out of this repo.
+  #
+  # These two are plain config files rather than Nix expressions, and they stay
+  # that way on purpose — ~/.config/sway points at a WRITABLE file in the repo,
+  # so a keybind tweak is an edit plus `swaymsg reload`, with no rebuild in the
+  # loop. home-manager was considered here and declined precisely because its
+  # xdg.configFile would make these read-only store paths and put a full switch
+  # in front of every experiment. See "No home-manager" in README.md.
+  #
+  # tmpfiles is what makes the symlinks declarative without that cost, which is
+  # the whole trick: the files are imperative, their placement isn't. `L+`
+  # means "create the symlink, replacing whatever is already there", so this is
+  # self-healing and idempotent — and it retires a manual `ln -sfn` step that
+  # otherwise has to be remembered on every fresh install.
+  #
+  # Mind the `+`: it deletes what it finds at that path first, including a real
+  # directory with files in it. That's what makes it self-healing, and it also
+  # means ~/.config/sway is now owned by this repo — anything hand-written
+  # there gets destroyed on the next switch. Edit sway/ in the repo, never
+  # through the symlink's old location.
+  #
+  # The `d` lines are not optional: tmpfiles creates missing parent directories
+  # itself, but as root:root, which would leave a root-owned ~/.config/fuzzel
+  # in a fresh home. Declaring them liz:users first avoids that.
+  systemd.tmpfiles.rules = [
+    "d /home/liz/.config               0755 liz users - -"
+    "d /home/liz/.config/fuzzel        0755 liz users - -"
+    "L+ /home/liz/.config/sway              - - - - /home/liz/nixos/sway"
+    "L+ /home/liz/.config/fuzzel/fuzzel.ini - - - - /home/liz/nixos/sway/fuzzel.ini"
+  ];
+
   # Wayland portals — file pickers, screen sharing, "open with" from apps.
   # Without these, screenshots/screen-share and some GTK dialogs fail quietly.
   xdg.portal = {
@@ -293,6 +327,9 @@
     xdg-terminal-exec # lets apps open "the" terminal
     # Job 2 had a daemon and no way to talk to it. `mpc`, not mpc_cli.
     mpc
+    pulsemixer       # TUI mixer over pipewire's pulse shim. pactl can set any
+                     # volume you can name, but you can't *see* the sinks and
+                     # per-app streams at once, which is the actual job.
     # dev / runtime you already use
     go uv docker-compose gh lazygit lazydocker
 
