@@ -141,6 +141,14 @@ slot survived, you have no recovery path — fix that immediately.
    drive, so it will NOT appear in the generated `hardware-configuration.nix` (that
    file is generated with the drive unplugged). You have to declare it:
 
+   **This step stays manual on purpose — it is a safety interlock, not an
+   oversight.** The drive is deliberately absent for the whole destructive part
+   of the install, and is reconnected and identified by hand only once the
+   partitioning and formatting are behind you. That removes any window in which
+   a `fileSystems` entry or an automount could aim at the wrong device while a
+   formatter is still in play. Do not "tidy" this into something automatic, and
+   do not move it earlier in the guide.
+
    ```nix
    # in configuration.nix
    fileSystems."/mnt" = {

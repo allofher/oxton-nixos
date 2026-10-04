@@ -77,6 +77,26 @@ Catches config errors while you still have a working machine.
       else depends on it, so that's a one-line change.
 
 ## Still open
+- [ ] **Split the repo into a "fresh install" config and a "fast forward" to
+      steady state.** Today `configuration.nix` is one monolith that serves both
+      roles, which is why install-time and post-install concerns keep colliding
+      (the `/mnt` entry describing a drive that is unplugged at install time is
+      the clearest symptom). Intended shape: two `nixosConfigurations` over
+      shared modules — a minimal `oxton-fresh` that is what you
+      `nixos-install --flake` from the clone, and the full `oxton` you switch to
+      afterwards. The fresh config cannot reference the HDD, so the footgun
+      stops existing at the moment it matters, and the install closure gets
+      small enough to be quick and hard to fail in the ISO.
+
+      The post-install steps that are irreducibly imperative — `passwd`, LUKS
+      TPM2 enrolment, `tailscale up`, moving the git remote to ssh, the
+      sway/fuzzel symlinks, restoring data, committing the hardware config —
+      become the "fast forward": ideally one idempotent, re-runnable script that
+      checks and reports rather than prose in INSTALL.md that has to be followed
+      by hand without skipping a line.
+
+      Note the HDD mount step keeps its manual, by-hand identification either
+      way; see the safety-interlock note in INSTALL.md first-boot step 1.
 - [ ] Printing (`cups`) was enabled on the old box and is not in this config yet.
       Bluetooth is now done. See `pre-nix/README.md`. No printer drivers were ever
       installed on the old box, so nothing was likely ever configured.
