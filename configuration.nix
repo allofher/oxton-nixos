@@ -434,4 +434,12 @@
   # Set to the release you INSTALL from. Do not change casually afterwards.
   ############################################################################
   system.stateVersion = "26.05";
+
+  # POST INSTALL STUFF
+  # External Drive Mounting
+  fileSystems."/mnt" = {
+    device = "/dev/disk/by-uuid/fbed9d9b-ef80-4596-b3e7-578fc81bec84";
+    fsType = "ext4";
+    options = [ "nofail" "x-systemd.device-timeout=10s" ];
+  };
 }
