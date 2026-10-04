@@ -322,8 +322,80 @@
     mangohud
   ];
 
-  # Nicer shell prompt/utils are configured per-user later; keeping this minimal.
   programs.starship.enable = true;
+
+  ############################################################################
+  # Shell — the aliases and helpers from the old box.
+  ############################################################################
+  # These lived in omarchy's default/bash/rc, which was under ~/.local/share
+  # and so is NOT in pre-wipe-sep-2026 (the backup took dotfiles, not .local).
+  # Reconstructed 2026-10-03 from ~/aliases.md — the notes you wrote
+  # documenting exactly what omarchy shadowed — plus the four personal aliases
+  # from the old ~/.bashrc. Every tool referenced here is in systemPackages.
+  programs.bash.shellAliases = {
+    # eza. `ls` is YOUR override from the old .bashrc (grid, all files), not
+    # omarchy's long-format default — the .bashrc redefined it after sourcing
+    # omarchy's rc, so the override is what you were actually typing against.
+    ls = "eza -a --icons=auto --color=auto";
+    lsa = "eza -lh --all --group-directories-first --icons=auto";
+    lt = "eza --tree --level=2 --long --git --icons=auto";
+    lta = "eza --tree --level=2 --long --git --all --icons=auto";
+    lst = "eza -a --tree --level=2 --git --icons=auto --color=auto";
+    # agents, minus the permission prompts
+    cc = "claude --dangerously-skip-permissions";
+    cx = "codex --yolo";
+  };
+
+  # Gives `z`/`zi`. The cd wrapper below is what actually gets used.
+  programs.zoxide = {
+    enable = true;
+    enableBashIntegration = true;
+  };
+
+  programs.bash.interactiveShellInit = ''
+    # cd, wrapped the way omarchy had it: a real path is a plain cd and
+    # zoxide never sees it; anything else is a frecency jump that prints
+    # where it landed. `builtin cd` so this can't recurse into itself.
+    zd() {
+      if [ $# -eq 0 ]; then
+        builtin cd ~ && return
+      elif [ -d "$1" ]; then
+        builtin cd "$1"
+      else
+        z "$1" && printf '→ %s\n' "$PWD"
+      fi
+    }
+    alias cd='zd'
+
+    # ff: fuzzy-find a file with a syntax-highlighted preview.
+    # eff: same, then open the pick in $EDITOR.
+    ff() { fzf --preview 'bat --style=numbers --color=always {}' "$@"; }
+    eff() {
+      local file
+      file=$(ff) && [ -n "$file" ] && "''${EDITOR:-nvim}" "$file"
+    }
+
+    # man pages rendered through bat. `man` itself is not aliased — this is
+    # the MANPAGER env var, which is why man just looks different.
+    export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+    export MANROFFOPT="-c"
+
+    export EDITOR=nvim
+    # Dropped from the old rc on the way over: the `. ~/.local/bin/env` line
+    # (a curl-installer artifact, no such file here) and two BUN_INSTALL
+    # exports, one of which pointed at a /tmp dir that no longer exists.
+    export PATH="$HOME/.local/bin:$PATH"
+  '';
+
+  # From the old ~/.bash_profile: an SSH login lands in tmux, so a dropped
+  # connection doesn't take the work with it. Falls through to a plain shell
+  # if tmux won't start — a broken tmux must never lock you out of job 1.
+  # Only login shells read this, so `ssh oxton <cmd>`, scp and rsync skip it.
+  programs.bash.loginShellInit = ''
+    if [ -z "$TMUX" ] && [ -n "$SSH_CONNECTION" ]; then
+      tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+    fi
+  '';
 
   # Flakes + the new CLI on.
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
