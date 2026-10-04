@@ -108,6 +108,33 @@
     alsa.enable = true;
     alsa.support32Bit = true;   # 32-bit games
     pulse.enable = true;        # pulse-compatible clients
+
+    # The Modius is the DAC everything should land on. Left to its own
+    # devices wireplumber elected the Samson Meteor — a USB *microphone*
+    # that also advertises a headphone-out sink — and audio vanished into
+    # it. Raising priority.session makes the Modius win the default-sink
+    # election outright instead of relying on
+    # ~/.local/state/wireplumber/default-nodes, which is machine-local,
+    # untracked, and does not survive a reinstall.
+    #
+    # Matched on node.name, which is built from USB vendor/product and so
+    # is stable across reboots and port changes — not on the card index or
+    # bus path, both of which move.
+    #
+    # This does NOT prevent switching sinks: the stored default still wins
+    # when present, so wpctl/pulsemixer work as before. Priority is what
+    # decides on a fresh install, or when that state is absent/cleared.
+    # The Modius is USB — powered off, it simply isn't a candidate and the
+    # next-highest sink takes over, which is the behaviour we want.
+    wireplumber.extraConfig."50-modius-default" = {
+      "monitor.alsa.rules" = [{
+        matches = [{
+          "node.name" =
+            "alsa_output.usb-Schiit_Audio_Schiit_Unison_Modius_ES-00.analog-stereo";
+        }];
+        actions.update-props."priority.session" = 2000;
+      }];
+    };
   };
   security.rtkit.enable = true; # lets pipewire take realtime priority
 
