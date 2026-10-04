@@ -78,6 +78,8 @@ If that comes back empty, stop and sort it out — the system won't boot without
 ## 7. Pull in your flake config
 ```
 nix-shell -p git   # drops you in a shell with git
+# HTTPS deliberately: there's no ssh key in the live ISO, and the HDD with
+# your old one is unplugged. Swapped to ssh in first-boot step 6.
 git clone https://github.com/allofher/oxton-nixos /mnt/home/liz/nixos
 # bring the freshly generated hardware config into the repo:
 cp /mnt/etc/nixos/hardware-configuration.nix /mnt/home/liz/nixos/
@@ -187,14 +189,37 @@ slot survived, you have no recovery path — fix that immediately.
    - `systemctl status mpd` and point a client at `oxton:6600`
    - `docker run --rm --device=/dev/kfd --device=/dev/dri rocm/pytorch rocminfo | head`
    - launch Steam, confirm a game runs
-6. **Commit the hardware config** so the repo is complete:
+6. **Switch the git remote to SSH.** Install step 7 (*Pull in your flake
+   config*, above the reboot) cloned over HTTPS on purpose — in
+   the live ISO there is no key yet and the HDD holding your old one is
+   unplugged. Now that you have a key, move the remote over, because git picks
+   its auth from the URL scheme: an `https://` remote never looks at `~/.ssh`
+   at all, it looks for a credential helper, and there isn't one. The symptom
+   is `git push` prompting for a GitHub username (which would also fail — the
+   web password hasn't been accepted for git since 2021).
+   ```
+   cd ~/nixos
+   git remote set-url origin git@github.com:allofher/oxton-nixos.git
+   ssh -T git@github.com     # expect: "Hi allofher! You've successfully authenticated"
+   ```
+   If that `ssh -T` fails, the key isn't on the account yet — `gh auth login`,
+   then `gh ssh-key add ~/.ssh/id_ed25519.pub -t oxton`.
+
+   Note `gh auth status` reporting `Git operations protocol: ssh` does **not**
+   do this for you. That preference only applies to URLs `gh` generates later;
+   it never rewrites a remote that already exists.
+
+   This one is genuinely a per-machine step, not a repo setting: the remote URL
+   lives in `.git/config`, which isn't tracked, so it can't be committed and
+   won't survive a reinstall.
+7. **Commit the hardware config** so the repo is complete:
    ```
    cd ~/nixos && git add hardware-configuration.nix && git commit -m "add hardware config" && git push
    ```
-7. **Link the sway + fuzzel configs.** There's no home-manager here, so these
+8. **Link the sway + fuzzel configs.** There's no home-manager here, so these
    two live in the repo but are NOT deployed by `nixos-rebuild`. Without the
    symlinks sway silently falls back to the stock `/etc/sway/config` and you
-   get `wmenu` on `$mod+d` instead of fuzzel:
+   get `wmenu` on Super+d instead of fuzzel on Super+space:
    ```
    mkdir -p ~/.config/fuzzel
    ln -sfn ~/nixos/sway ~/.config/sway
