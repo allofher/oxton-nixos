@@ -1,5 +1,9 @@
 { config, pkgs, lib, ... }:
 
+let
+  lightmode = pkgs.callPackage ./pkgs/lightmode.nix { };
+in
+
 {
   imports = [
     # Generated on the machine by `nixos-generate-config` during install, then
@@ -73,6 +77,7 @@
       "audio"
       "docker"
       "networkmanager"
+      "i2c"      # DDC/CI monitor brightness (candle/flashbang)
     ];
     shell = pkgs.bash;
     openssh.authorizedKeys.keys = [
@@ -281,6 +286,38 @@
   programs.firefox.enable = true;
 
   ############################################################################
+  # Evening screen — candle / flashbang. See pkgs/lightmode.nix.
+  ############################################################################
+  # DDC/CI to the monitor goes over /dev/i2c-*: this loads i2c-dev and makes
+  # the `i2c` group (liz is in it, above) that can open those nodes.
+  hardware.i2c.enable = true;
+
+  # The tint. Started and stopped by lightmode; bound to the sway session
+  # because gammastep needs WAYLAND_DISPLAY, which sway imports at login.
+  systemd.user.services.candle-warmth = {
+    description = "Warm screen tint (candle mode)";
+    partOf = [ "sway-session.target" ];
+    serviceConfig.ExecStart = "${pkgs.gammastep}/bin/gammastep -O 1600";
+  };
+
+  # The schedule. Also runs at login, so a reboot mid-evening comes back warm.
+  systemd.user.services.lightmode-auto = {
+    description = "Apply scheduled candle/flashbang mode";
+    wantedBy = [ "sway-session.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${lightmode}/bin/lightmode auto";
+    };
+  };
+  systemd.user.timers.lightmode-auto = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = [ "*-*-* 07:00:00" "*-*-* 16:00:00" ];
+      Persistent = true;
+    };
+  };
+
+  ############################################################################
   # Secrets, auth, MFA
   ############################################################################
   # 1Password GUI + the `op` CLI. Unfree, hence allowUnfree above. You were on
@@ -391,6 +428,8 @@
     # config, so nearly all of that was marginal rather than shared. Steam
     # ships Proton itself; protonup-qt only manages GE-Proton builds.
     mangohud
+    # candle / flashbang, plus ddcutil itself for poking the monitor by hand
+    lightmode ddcutil
   ];
 
   programs.starship.enable = true;
