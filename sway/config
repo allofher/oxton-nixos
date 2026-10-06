@@ -83,6 +83,7 @@ output * bg /run/current-system/sw/share/backgrounds/sway/Sway_Wallpaper_Blue_19
     bindsym $mod+Return exec $term
 
     # Kill focused window
+    bindsym $mod+w kill
     bindsym $mod+Shift+q kill
 
     # Start your launcher. Super+space is the primary binding — $mod is Mod4,
@@ -175,7 +176,6 @@ output * bg /run/current-system/sw/share/backgrounds/sway/Sway_Wallpaper_Blue_19
 
     # Switch the current container between different layout styles
     bindsym $mod+s layout stacking
-    bindsym $mod+w layout tabbed
     bindsym $mod+e layout toggle split
 
     # Make the current focus fullscreen
