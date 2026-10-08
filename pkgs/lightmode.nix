@@ -1,7 +1,9 @@
-# candle / flashbang — evening screen mode, and the schedule that drives it.
+# candle / flashbang / gaming — evening screen mode, and the schedule that drives it.
 #
 #   candle     warm tint (gammastep 1600K) + monitor backlight to 40%
 #   flashbang  no tint + backlight back to 100%
+#   gaming     no tint + backlight to 20% — night-time games, where the tint
+#              would wreck the colours
 #
 # Brightness goes over DDC/CI because this monitor ignores gamma dimming — the
 # backlight is the only thing that actually gets darker. The tint is a gammastep
@@ -9,8 +11,8 @@
 # the tint lasts exactly as long as that process does.
 #
 # Schedule: `lightmode auto` runs at 07:00 and 16:00 (and at sway login) and
-# applies flashbang by day, candle from 16:00 to 07:00. Typing candle or
-# flashbang yourself records the mode against today, and `auto` honours that
+# applies flashbang by day, candle from 16:00 to 07:00. Typing candle,
+# flashbang or gaming yourself records the mode against today, and `auto` honours that
 # instead of the clock until the next 07:00. A "day" runs 07:00 to 07:00 so a
 # candle at 1am still counts as the night before, rather than cancelling the
 # whole next day's schedule.
@@ -31,11 +33,12 @@ let
         case "$1" in
           candle)    systemctl --user start candle-warmth.service; backlight 40 ;;
           flashbang) systemctl --user stop candle-warmth.service; backlight 100 ;;
+          gaming)    systemctl --user stop candle-warmth.service; backlight 20 ;;
         esac
       }
 
       case "''${1:-}" in
-        candle|flashbang)
+        candle|flashbang|gaming)
           mkdir -p "$(dirname "$state")"
           echo "$(day) $1" > "$state"
           apply "$1"
@@ -50,7 +53,7 @@ let
           apply "$mode"
           ;;
         *)
-          echo "usage: lightmode candle|flashbang|auto" >&2
+          echo "usage: lightmode candle|flashbang|gaming|auto" >&2
           exit 2
           ;;
       esac
@@ -63,5 +66,6 @@ symlinkJoin {
     lightmode
     (writeShellScriptBin "candle" ''exec ${lightmode}/bin/lightmode candle'')
     (writeShellScriptBin "flashbang" ''exec ${lightmode}/bin/lightmode flashbang'')
+    (writeShellScriptBin "gaming" ''exec ${lightmode}/bin/lightmode gaming'')
   ];
 }

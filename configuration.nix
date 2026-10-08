@@ -286,7 +286,7 @@ in
   programs.firefox.enable = true;
 
   ############################################################################
-  # Evening screen — candle / flashbang. See pkgs/lightmode.nix.
+  # Evening screen — candle / flashbang / gaming. See pkgs/lightmode.nix.
   ############################################################################
   # DDC/CI to the monitor goes over /dev/i2c-*: this loads i2c-dev and makes
   # the `i2c` group (liz is in it, above) that can open those nodes.
