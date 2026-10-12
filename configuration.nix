@@ -465,6 +465,8 @@ in
     # agents, minus the permission prompts
     cc = "claude --dangerously-skip-permissions";
     cx = "codex --yolo";
+    # the TUI mixer, for when the name won't come back
+    sound = "pulsemixer";
   };
 
   # Gives `z`/`zi`. The cd wrapper below is what actually gets used.
