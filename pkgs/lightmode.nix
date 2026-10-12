@@ -31,7 +31,9 @@ let
 
       apply() {
         case "$1" in
-          candle)    systemctl --user start candle-warmth.service; backlight 40 ;;
+          # restart, not start: gammastep only scans outputs at launch, so one
+          # started while the monitor slept keeps running and tints nothing.
+          candle)    systemctl --user restart candle-warmth.service; backlight 40 ;;
           flashbang) systemctl --user stop candle-warmth.service; backlight 100 ;;
           gaming)    systemctl --user stop candle-warmth.service; backlight 20 ;;
         esac
