@@ -396,6 +396,17 @@ in
                      # per-app streams at once, which is the actual job.
     # dev / runtime you already use
     go uv docker-compose gh lazygit lazydocker
+    # A plain python3 on PATH for scripts, and for uv to build venvs on — uv's
+    # own downloaded pythons won't run here (same ld-linux problem as
+    # claude-code, below). Per-project versions belong in a dev shell.
+    python3
+    # nixpkgs' rustc/cargo, NOT rustup: rustup downloads toolchains at runtime
+    # from static.rust-lang.org, outside flake.lock. These are built from
+    # source by Hydra and pinned like everything else — one trust root. The
+    # cost is stable-only, at whatever version nixpkgs ships; a project that
+    # needs nightly or a rust-toolchain.toml gets its own dev shell.
+    # gcc because rustc links through `cc`, and nothing else here provides one.
+    rustc cargo gcc
 
     ########################################################################
     # The oxton.net intake pipeline (~/projects/oxton-website/tools/intake)
