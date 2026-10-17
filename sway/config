@@ -35,8 +35,10 @@ set $dmenu fuzzel --dmenu
 
 ### Output configuration
 #
-# Plain black background
-output * bg #000000 solid_color
+# Static copy of the wallpaper photo. The animated rain (wallpaper user service,
+# pkgs/wallpaper.nix) draws over it, and steps aside while Steam runs, leaving
+# this showing.
+output * bg /home/liz/nixos/sway/wallpaper/san-juan-river.jpg fill
 #
 # Example configuration:
 #

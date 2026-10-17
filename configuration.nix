@@ -2,6 +2,7 @@
 
 let
   lightmode = pkgs.callPackage ./pkgs/lightmode.nix { };
+  wallpaper = pkgs.callPackage ./pkgs/wallpaper.nix { };
 in
 
 {
@@ -314,6 +315,22 @@ in
     timerConfig = {
       OnCalendar = [ "*-*-* 07:00:00" "*-*-* 16:00:00" ];
       Persistent = true;
+    };
+  };
+
+  ############################################################################
+  # Wallpaper — rain over the San Juan River. See pkgs/wallpaper.nix.
+  ############################################################################
+  # Bound to the sway session for WAYLAND_DISPLAY, like candle-warmth. Steps
+  # aside while Steam runs; swaybg's static photo (sway/config) is underneath.
+  systemd.user.services.wallpaper = {
+    description = "Animated rain wallpaper (paused while Steam runs)";
+    wantedBy = [ "sway-session.target" ];
+    partOf = [ "sway-session.target" ];
+    serviceConfig = {
+      ExecStart = "${wallpaper}/bin/wallpaper";
+      Restart = "on-failure";
+      RestartSec = 5;
     };
   };
 
