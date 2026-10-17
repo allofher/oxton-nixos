@@ -467,6 +467,8 @@ in
     cx = "codex --yolo";
     # the TUI mixer, for when the name won't come back
     sound = "pulsemixer";
+    # macOS muscle memory
+    open = "xdg-open";
   };
 
   # Gives `z`/`zi`. The cd wrapper below is what actually gets used.
