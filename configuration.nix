@@ -108,14 +108,24 @@ in
   # JOB 1b — tailnet-only home site (phone → oxton)
   ############################################################################
   # Caddy is the front door so this can grow into a private "website": add
-  # routes below. Port 80 is NOT in allowedTCPPorts, so only tailscale0
-  # (trusted) reaches it — LAN and internet can't. Plain http is fine on the
-  # wire (WireGuard encrypts it); move to https once "HTTPS Certificates" is
-  # enabled in the tailnet admin (DNS page): set services.tailscale.permitCertUid
-  # = "caddy" and change the site address to "oxton.tailbd5d69.ts.net".
+  # routes to the https site below. Ports 80/443 are NOT in allowedTCPPorts,
+  # so only tailscale0 (trusted) reaches them — LAN and internet can't.
+  # The certificate comes from tailscaled (HTTPS Certificates is enabled in
+  # the tailnet admin); note every cert lands in public CT logs, so machine
+  # names are public — never give one a revealing name.
+  services.tailscale.permitCertUid = "caddy";
   services.caddy = {
     enable = true;
+    # Only oxton's own names. A catch-all would let a web page rebind its own
+    # domain to oxton's tailnet IP (DNS rebinding) — same-origin to the
+    # browser, so ttyd's checkOrigin passes and the page gets the shell.
     virtualHosts."http://".extraConfig = ''
+      respond 421
+    '';
+    virtualHosts."http://oxton, http://oxton.tailbd5d69.ts.net".extraConfig = ''
+      redir https://oxton.tailbd5d69.ts.net{uri}
+    '';
+    virtualHosts."oxton.tailbd5d69.ts.net".extraConfig = ''
       redir /term /term/
       handle_path /term/* {
         reverse_proxy 127.0.0.1:7681
@@ -125,7 +135,7 @@ in
       }
     '';
   };
-  # Web terminal at http://oxton/term — a shell as liz, attached to a
+  # Web terminal at https://oxton.tailbd5d69.ts.net/term — a shell as liz, attached to a
   # persistent tmux session ("phone"), so closing Safari doesn't lose work.
   services.ttyd = {
     enable = true;
