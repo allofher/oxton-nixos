@@ -1,0 +1,122 @@
+<!-- Injected into ttyd's own index.html by ttyd-mobile.nix, right after
+     <meta charset>, so it runs before ttyd's bundle. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2b2b2b; }
+  /* ttyd sizes the container to 100%; we size it to the visible area above
+     the key bar instead, so the iOS keyboard doesn't cover the prompt. */
+  #terminal-container { height: var(--term-h, calc(100% - 44px)) !important; }
+  #keybar {
+    position: fixed; left: 0; right: 0; top: var(--bar-top, auto); bottom: auto;
+    height: 44px; display: flex; gap: 4px; padding: 4px;
+    padding-left: max(4px, env(safe-area-inset-left));
+    padding-right: max(4px, env(safe-area-inset-right));
+    box-sizing: border-box; background: #1e1e1e; z-index: 10;
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  }
+  #keybar button {
+    flex: 1 1 0; min-width: 0; border: 0; border-radius: 6px;
+    background: #3a3a3a; color: #eee; font: 15px -apple-system, system-ui, sans-serif;
+    padding: 0;
+  }
+  #keybar button.on { background: #d0d0d0; color: #111; }
+</style>
+<script>
+(() => {
+  // Sticky Ctrl: tap Ctrl, then a letter on the iOS keyboard. Applied where
+  // input leaves the page (ttyd's websocket) so it works however iOS delivers
+  // the keystroke. ttyd frames input as the byte '0' followed by the data.
+  let ctrl = false;
+  const send = WebSocket.prototype.send;
+  WebSocket.prototype.send = function (d) {
+    if (ctrl && d instanceof Uint8Array && d.length === 2 && d[0] === 0x30) {
+      const c = d[1];
+      const m = c >= 0x61 && c <= 0x7a ? c - 0x60   // a-z
+              : c >= 0x40 && c <= 0x5f ? c - 0x40   // @ A-Z [ \ ] ^ _
+              : c === 0x20 ? 0 : null;              // space -> NUL
+      if (m !== null) d = new Uint8Array([0x30, m]);
+      setCtrl(false);
+    }
+    return send.call(this, d);
+  };
+
+  let bar;
+  function setCtrl(on) {
+    ctrl = on;
+    bar && bar.querySelector('[data-k=ctrl]').classList.toggle('on', on);
+  }
+
+  const term = () => window.term;
+  const arrow = (k) => (term() && term().modes.applicationCursorKeysMode ? '\x1bO' : '\x1b[') + k;
+  const keys = [
+    ['Esc', () => '\x1b'],
+    ['Tab', () => '\t'],
+    ['Ctrl', null, 'ctrl'],
+    ['←', () => arrow('D')],
+    ['↓', () => arrow('B')],
+    ['↑', () => arrow('A')],
+    ['→', () => arrow('C')],
+    ['~', () => '~'],
+    ['|', () => '|'],
+    ['/', () => '/'],
+    ['Aa', null, 'font'],
+  ];
+
+  const sizes = [13, 15, 17, 20];
+  let size = 15;
+  try { size = +localStorage.getItem('ttyd-font') || 15; } catch (e) {}
+  function applyFont() {
+    if (!term()) return;
+    term().options.fontSize = size;
+    layout();
+  }
+
+  function press(k) {
+    if (k[2] === 'ctrl') return setCtrl(!ctrl);
+    if (k[2] === 'font') {
+      size = sizes[(sizes.indexOf(size) + 1) % sizes.length];
+      try { localStorage.setItem('ttyd-font', size); } catch (e) {}
+      return applyFont();
+    }
+    term() && term().input(k[1]());
+  }
+
+  // Keep the bar sitting on top of the keyboard and the terminal filling
+  // what's left. iOS shrinks visualViewport (not the window) for the keyboard.
+  function layout() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    const top = vv ? vv.offsetTop : 0;
+    document.documentElement.style.setProperty('--term-h', (h - 44) + 'px');
+    document.documentElement.style.setProperty('--bar-top', (top + h - 44) + 'px');
+    const c = document.getElementById('terminal-container');
+    if (c) c.style.transform = 'translateY(' + top + 'px)';
+    term() && term().fit && term().fit();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    bar = document.createElement('div');
+    bar.id = 'keybar';
+    for (const k of keys) {
+      const b = document.createElement('button');
+      b.textContent = k[0];
+      if (k[2]) b.dataset.k = k[2];
+      // Act on touchstart and cancel it, so the button never takes focus
+      // and the keyboard stays up.
+      b.addEventListener('touchstart', (e) => { e.preventDefault(); press(k); }, { passive: false });
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => press(k));
+      bar.appendChild(b);
+    }
+    document.body.appendChild(bar);
+    if (window.visualViewport) {
+      visualViewport.addEventListener('resize', layout);
+      visualViewport.addEventListener('scroll', layout);
+    }
+    window.addEventListener('resize', layout);
+    // window.term appears once ttyd's bundle has opened the terminal.
+    const wait = setInterval(() => { if (term()) { clearInterval(wait); applyFont(); } }, 100);
+    layout();
+  });
+})();
+</script>

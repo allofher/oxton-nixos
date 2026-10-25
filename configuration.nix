@@ -105,6 +105,42 @@ in
   # (auth is interactive; keep the key out of the repo)
 
   ############################################################################
+  # JOB 1b — tailnet-only home site (phone → oxton)
+  ############################################################################
+  # Caddy is the front door so this can grow into a private "website": add
+  # routes below. Port 80 is NOT in allowedTCPPorts, so only tailscale0
+  # (trusted) reaches it — LAN and internet can't. Plain http is fine on the
+  # wire (WireGuard encrypts it); move to https once "HTTPS Certificates" is
+  # enabled in the tailnet admin (DNS page): set services.tailscale.permitCertUid
+  # = "caddy" and change the site address to "oxton.tailbd5d69.ts.net".
+  services.caddy = {
+    enable = true;
+    virtualHosts."http://".extraConfig = ''
+      redir /term /term/
+      handle_path /term/* {
+        reverse_proxy 127.0.0.1:7681
+      }
+      handle {
+        respond "oxton: /term" 200
+      }
+    '';
+  };
+  # Web terminal at http://oxton/term — a shell as liz, attached to a
+  # persistent tmux session ("phone"), so closing Safari doesn't lose work.
+  services.ttyd = {
+    enable = true;
+    interface = "lo";       # only Caddy talks to it
+    user = "liz";
+    writeable = true;
+    # Refuse websockets opened from other origins: without this, any web page
+    # open on the phone while it's on the tailnet could script this shell.
+    checkOrigin = true;
+    # Phone viewport + Esc/Tab/Ctrl/arrow key bar. See pkgs/ttyd-mobile.nix.
+    indexFile = "${pkgs.callPackage ./pkgs/ttyd-mobile.nix { }}";
+    entrypoint = [ "${pkgs.tmux}/bin/tmux" "new-session" "-A" "-s" "phone" "-c" "/home/liz" ];
+  };
+
+  ############################################################################
   # Audio — pipewire. REQUIRED: mpd below is configured to output to pipewire,
   # so without this it talks to a server that doesn't exist. No sound anywhere,
   # games included.
@@ -486,6 +522,8 @@ in
     sound = "pulsemixer";
     # macOS muscle memory
     open = "xdg-open";
+    # apply ~/nixos to the running system (step 3 of the loop in CLAUDE.md)
+    reflake = "sudo nixos-rebuild switch --flake /home/liz/nixos#oxton";
   };
 
   # Gives `z`/`zi`. The cd wrapper below is what actually gets used.
